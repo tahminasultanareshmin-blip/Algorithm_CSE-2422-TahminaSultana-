@@ -1,4 +1,4 @@
-#include <iostream>
+#include <bits/stdc++.h>
 using namespace std;
 
 struct Node {
@@ -8,88 +8,85 @@ struct Node {
     Node* right;
 };
 
-Node* createNode(char c, int f) {
-    Node* temp = new Node;
+Node* newNode(char c, int f) {
+    Node* temp = new Node();
     temp->ch = c;
     temp->freq = f;
-    temp->left = temp->right = nullptr;
+    temp->left = temp->right = NULL;
     return temp;
 }
 
-void fillCodes(Node* root, string code, char chars[], string codes[], int n) {
+struct cmp {
+    bool operator()(Node* a, Node* b) {
+        return a->freq > b->freq;
+    }
+};
+
+string code[256];
+
+void makeCode(Node* root, string s) {
     if (!root)
-        return;
-    if (!root->left && !root->right) {
-        for (int i = 0; i < n; i++) {
-            if (chars[i] == root->ch) {
-                codes[i] = code;
-                break;
-            }
-        }
+     return;
+
+    if (root->left == NULL && root->right == NULL) {
+        code[root->ch] = s;
     }
 
-    fillCodes(root->left, code + "0", chars, codes, n);
-    fillCodes(root->right, code + "1", chars, codes, n);
+    makeCode(root->left, s + "0");
+    makeCode(root->right, s + "1");
 }
 
 int main() {
-    int n;
-    cout << "Enter number of characters: ";
-    cin >> n;
+    string s;
+    cout << "Enter string: ";
+    getline(cin, s);
 
-    char chars[100];
-    int freq[100];
-    Node* nodes[100];
-    string codes[100];
+    int freq[256] = {0};
 
-    cout << "Enter characters: ";
-    for (int i = 0; i < n; i++) cin >> chars[i];
-
-    cout << "Enter frequencies: ";
-    for (int i = 0; i < n; i++) cin >> freq[i];
-
-    for (int i = 0; i < n; i++) {
-        nodes[i] = createNode(chars[i], freq[i]);
-        codes[i] = "";
+    for (int i = 0; i < s.length(); i++) {
+        freq[s[i]]++;
     }
 
-    while (true) {
-        int min1 = -1, min2 = -1;
-        int count = 0;
-        for (int i = 0; i < n; i++)
-            if (nodes[i] != nullptr) count++;
-        if (count == 1) break;
+    priority_queue<Node*, vector<Node*>, cmp> pq;
 
-        for (int i = 0; i < n; i++) {
-            if (nodes[i] != nullptr) {
-                if (min1 == -1 || nodes[i]->freq < nodes[min1]->freq) {
-                    min2 = min1;
-                    min1 = i;
-                } else if (min2 == -1 || nodes[i]->freq < nodes[min2]->freq) {
-                    min2 = i;
-                }
-            }
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            pq.push(newNode((char)i, freq[i]));
         }
-
-        Node* left = nodes[min1];
-        Node* right = nodes[min2];
-        Node* parent = createNode('$', left->freq + right->freq);
-        parent->left = left;
-        parent->right = right;
-
-        nodes[min1] = parent;
-        nodes[min2] = nullptr;
     }
 
-    Node* root = nullptr;
-    for (int i = 0; i < n; i++)
-        if (nodes[i] != nullptr) root = nodes[i];
+    while (pq.size() > 1) {
+        Node* a = pq.top(); pq.pop();
+        Node* b = pq.top(); pq.pop();
 
-    fillCodes(root, "", chars, codes, n);
+        Node* parent = newNode('#', a->freq + b->freq);
+        parent->left = a;
+        parent->right = b;
 
-    cout << "Huffman Codes:\n";
-    for (int i = 0; i < n; i++)
-        cout << chars[i] << ": " << codes[i] << endl;
+        pq.push(parent);
+    }
+
+    Node* root = pq.top();
+
+    makeCode(root, "");
+
+    int message = 0;
+    int table = 0;
+
+    cout << "\nCharacter  Frequency  Code\n";
+
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            cout << (char)i << "            "<< freq[i] << "          "<< code[i] << endl;
+
+            message += freq[i] * code[i].length();
+            table += 8 + code[i].length();
+        }
+    }
+
+    cout << "\nMessage size: " << message << " bits";
+    cout << "\nTable size: " << table << " bits";
+    cout << "\nVariable length: " << message + table << " bits"<<endl;
 
     return 0;
 }
