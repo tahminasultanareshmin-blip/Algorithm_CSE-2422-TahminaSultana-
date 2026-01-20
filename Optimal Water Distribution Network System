@@ -1,0 +1,329 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// ------------------------------------------------------
+// PIPE STRUCTURE (LINKED LIST)
+// ------------------------------------------------------
+struct Pipe {
+    string fromCity, toCity;
+    int from, to, cost;
+    int length;  // NEW: length of the pipe
+    Pipe *next;
+    Pipe(int f, int t, int c, int l, string fCity, string tCity)
+        : from(f), to(t), cost(c), length(l), fromCity(fCity), toCity(tCity), next(NULL) {}
+};
+
+Pipe* head = NULL; // Start of pipe list
+
+// ------------------------------------------------------
+// ADD PIPE
+// ------------------------------------------------------
+void addPipe(int f, int t, int c, int l, string fCity, string tCity) {
+    Pipe* temp = new Pipe(f, t, c, l, fCity, tCity);
+    if (!head) head = temp;
+    else {
+        Pipe* p = head;
+        while (p->next) p = p->next;
+        p->next = temp;
+    }
+    cout << "Pipe added successfully!\n";
+}
+
+// ------------------------------------------------------
+// SHOW ALL PIPES
+// ------------------------------------------------------
+void showPipes() {
+    if (!head) { cout << "No pipes available.\n"; return; }
+    cout << "\n--- ALL PIPES ---\n";
+    Pipe* p = head;
+    while (p) {
+        cout << p->fromCity << " (Zone " << p->from << ") "
+             << "<-> " << p->toCity << " (Zone " << p->to << ") "
+             << "| Cost: " << p->cost
+             << " | Length: " << p->length << "\n";
+        p = p->next;
+    }
+}
+
+// ------------------------------------------------------
+// SEARCH PIPE
+// ------------------------------------------------------
+void searchPipe(int f, int t) {
+    Pipe* p = head;
+    while (p) {
+        if (p->from == f && p->to == t) {
+            cout << "Pipe FOUND! " << p->fromCity << " -> " << p->toCity
+                 << " | Cost: " << p->cost
+                 << " | Length: " << p->length << "\n";
+            return;
+        }
+        p = p->next;
+    }
+    cout << "Pipe NOT found.\n";
+}
+
+// ------------------------------------------------------
+// DELETE PIPE
+// ------------------------------------------------------
+void deletePipe(int f, int t) {
+    if (!head) return;
+
+    Pipe* p = head;
+    Pipe* prev = NULL;
+
+    while (p) {
+        if (p->from == f && p->to == t) {
+            if (!prev) head = p->next;
+            else prev->next = p->next;
+
+            delete p;
+            cout << "Pipe deleted successfully.\n";
+            return;
+        }
+        prev = p;
+        p = p->next;
+    }
+
+    cout << "Pipe not found.\n";
+}
+
+// ------------------------------------------------------
+// CLEAR ALL PIPES
+// ------------------------------------------------------
+void clearAll() {
+    while (head) {
+        Pipe* p = head;
+        head = head->next;
+        delete p;
+    }
+    cout << "All pipes cleared!\n";
+}
+
+// ------------------------------------------------------
+// GREEDY: MINIMUM SPANNING TREE (Prim's Algorithm)
+// ------------------------------------------------------
+void buildMST(int zones) {
+    if (!head) {
+        cout << "No pipes to build MST.\n";
+        return;
+    }
+
+    int INF = 1e9;
+    vector<vector<int>> cost(zones+1, vector<int>(zones+1, INF));
+    vector<string> cityName(zones+1);
+
+    // Build adjacency matrix from linked list
+    Pipe* p = head;
+    while (p) {
+        cost[p->from][p->to] = p->cost;
+        cost[p->to][p->from] = p->cost;
+        cityName[p->from] = p->fromCity;
+        cityName[p->to] = p->toCity;
+        p = p->next;
+    }
+
+    vector<int> key(zones+1, INF);
+    vector<int> parent(zones+1, -1);
+    vector<bool> visited(zones+1, false);
+
+    // Start MST from the first zone that has at least one pipe
+    int start = 1;
+    for (int i = 1; i <= zones; i++) {
+        bool hasPipe = false;
+        for (int j = 1; j <= zones; j++) {
+            if (cost[i][j] != INF) { hasPipe = true; break; }
+        }
+        if (hasPipe) { start = i; break; }
+    }
+
+    key[start] = 0;
+
+    for (int count = 1; count <= zones; count++) {
+        int u = -1, minKey = INF;
+        for (int i = 1; i <= zones; i++) {
+            if (!visited[i] && key[i] < minKey) {
+                u = i;
+                minKey = key[i];
+            }
+        }
+
+        if (u == -1) break; // All reachable zones processed
+
+        visited[u] = true;
+
+        for (int v = 1; v <= zones; v++) {
+            if (!visited[v] && cost[u][v] < key[v]) {
+                key[v] = cost[u][v];
+                parent[v] = u;
+            }
+        }
+    }
+
+    int mstCost = 0;
+    cout << "\n--- Minimum Cost Water Network (MST) ---\n";
+    for (int i = 1; i <= zones; i++) {
+        if (parent[i] != -1) { // Only print connected pipes
+            cout << cityName[parent[i]] << " -> " << cityName[i]
+                 << " | Cost: " << cost[parent[i]][i] << "\n";
+            mstCost += cost[parent[i]][i];
+        }
+    }
+    cout << "Total MST Cost: " << mstCost << "\n";
+}
+
+// ------------------------------------------------------
+// DYNAMIC PROGRAMMING: MAX PIPE LENGTH WITH BUDGET
+// ------------------------------------------------------
+void dpPipeSelection() {
+    if (!head) {
+        cout << "No pipes available.\n";
+        return;
+    }
+
+    cout << "Enter total budget: ";
+    int budget; cin >> budget;
+
+    vector<int> cost, length;
+    Pipe* p = head;
+    while (p) {
+        cost.push_back(p->cost);
+        length.push_back(p->length); // value = length
+        p = p->next;
+    }
+
+    int n = cost.size();
+    vector<int> dp(budget + 1, 0);
+
+    for (int i = 0; i < n; i++) {
+        for (int b = budget; b >= cost[i]; b--) {
+            dp[b] = max(dp[b], dp[b - cost[i]] + length[i]);
+        }
+    }
+
+    cout << "Maximum total pipe length within budget "
+         << budget << " = " << dp[budget] << "\n";
+}
+
+// ------------------------------------------------------
+// REALISTIC DIVIDE & CONQUER: ZONE COST ANALYSIS
+// ------------------------------------------------------
+int divideCost(vector<int>& arr, int l, int r) {
+    if (l == r) return arr[l];
+    int mid = (l + r) / 2;
+    return divideCost(arr, l, mid) + divideCost(arr, mid+1, r);
+}
+
+int maxZoneCost(vector<int>& arr, int l, int r) {
+    if (l == r) return arr[l];
+    int mid = (l + r) / 2;
+    return max(maxZoneCost(arr, l, mid), maxZoneCost(arr, mid+1, r));
+}
+
+int minZoneCost(vector<int>& arr, int l, int r) {
+    if (l == r) return arr[l];
+    int mid = (l + r) / 2;
+    return min(minZoneCost(arr, l, mid), minZoneCost(arr, mid+1, r));
+}
+
+void splitZoneCost() {
+    cout << "Enter number of zones: ";
+    int n; cin >> n;
+    vector<int> cost(n);
+    cout << "Enter cost of each zone:\n";
+    for (int i = 0; i < n; i++) {
+        cout << "Zone " << (i+1) << ": ";
+        cin >> cost[i];
+    }
+
+    int totalCost = divideCost(cost, 0, n-1);
+    int mid = n / 2;
+    int leftCost = divideCost(cost, 0, mid-1);
+    int rightCost = divideCost(cost, mid, n-1);
+    int maxCost = maxZoneCost(cost, 0, n-1);
+    int minCost = minZoneCost(cost, 0, n-1);
+
+    cout << "\n--- Zone Cost Analysis ---\n";
+    cout << "Total cost of all zones: " << totalCost << "\n";
+    cout << "Left half zones total: " << leftCost << "\n";
+    cout << "Right half zones total: " << rightCost << "\n";
+    cout << "Most expensive zone cost: " << maxCost << "\n";
+    cout << "Cheapest zone cost: " << minCost << "\n";
+
+    int threshold;
+    cout << "Enter cost threshold to highlight expensive zones: ";
+    cin >> threshold;
+    cout << "Zones exceeding " << threshold << " cost: ";
+    bool found = false;
+    for (int i = 0; i < n; i++) {
+        if (cost[i] > threshold) {
+            cout << "Zone " << (i+1) << " ";
+            found = true;
+        }
+    }
+    if (!found) cout << "None";
+    cout << "\n";
+}
+
+// ------------------------------------------------------
+// MAIN MENU
+// ------------------------------------------------------
+int main() {
+    int zones;
+    cout << "Enter total number of zones: "; cin >> zones;
+
+    vector<string> zoneNames(zones+1);
+    cout << "Enter names of each zone/city:\n";
+    for (int i = 1; i <= zones; i++) {
+        cout << "Zone " << i << ": "; cin >> zoneNames[i];
+    }
+
+    while (true) {
+        cout << "\n=====================================\n";
+        cout << " Optimal Water Distribution Network\n";
+        cout << "=====================================\n";
+        cout << "1. Add Pipe Between Zones\n";
+        cout << "2. Show All Pipes\n";
+        cout << "3. Search for a Pipe\n";
+        cout << "4. Delete a Pipe\n";
+        cout << "5. Clear All Pipes\n";
+        cout << "6. Build Minimum Cost Network (Greedy - MST)\n";
+        cout << "7. Max Pipe Length Within Budget (Dynamic Programming)\n";
+        cout << "8. Zone Cost Analysis (Divide & Conquer)\n";
+        cout << "9. Exit\n";
+        cout << "Enter your choice: ";
+
+        int choice; cin >> choice;
+        int f, t, c;
+
+        switch (choice) {
+        case 1:
+            cout << "From Zone (number): "; cin >> f;
+            cout << "To Zone (number): "; cin >> t;
+            cout << "Cost of Pipe: "; cin >> c;
+            int l;
+            cout << "Length of Pipe: "; cin >> l;
+            addPipe(f, t, c, l, zoneNames[f], zoneNames[t]);
+            break;
+
+        case 2: showPipes(); break;
+        case 3:
+            cout << "From Zone: "; cin >> f;
+            cout << "To Zone: "; cin >> t;
+            searchPipe(f, t);
+            break;
+
+        case 4:
+            cout << "From Zone: "; cin >> f;
+            cout << "To Zone: "; cin >> t;
+            deletePipe(f, t);
+            break;
+
+        case 5: clearAll(); break;
+        case 6: buildMST(zones); break;
+        case 7: dpPipeSelection(); break;
+        case 8: splitZoneCost(); break;
+        case 9: cout << "Exiting system...\n"; return 0;
+        default: cout << "Invalid choice. Try again.\n";
+        }
+    }
+}
